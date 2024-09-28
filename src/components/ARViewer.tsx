@@ -1,152 +1,280 @@
-import React, { useState, useEffect } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
+import { Cube, Image as ImageIcon, Video, Maximize, Minimize, RotateCcw, Hand } from 'lucide-react';
 import styles from '../styles/components/ARViewer.module.css';
-import { useAREngine } from '../hooks/useAREngine';
-import { useTracking } from '../hooks/useTracking';
 
-interface ModelProps {
+interface ARElement {
+  id: string;
+  type: 'model' | 'image' | 'video' | 'text';
+  name: string;
   url: string;
-  elementId: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+  content?: string;
 }
 
-const Model: React.FC<ModelProps> = ({ url, elementId }) => {
-  const { scene } = useGLTF(url);
-  const { updateElement } = useAREngine();
-  const { camera } = useThree();
-  const modelRef = useRef<THREE.Group>();
+interface ARViewerProps {
+  elements: ARElement[];
+  onElementUpdate: (id: string, updates: Partial<ARElement>) => void;
+}
+
+const ARViewer: React.FC<ARViewerProps> = ({ elements, onElementUpdate }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const objectsRef = useRef<{ [key: string]: THREE.Object3D }>({});
+
+  const [isARMode, setIsARMode] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<ARElement | null>(null);
+  const [isGrabbing, setIsGrabbing] = useState(false);
 
   useEffect(() => {
-    if (modelRef.current) {
-      const box = new THREE.Box3().setFromObject(modelRef.current);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
+    if (!containerRef.current) return;
 
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const fov = camera.fov * (Math.PI / 180);
-      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+    // Scene setup
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
 
-      cameraZ *= 1.5; // Zoom out a little so object fits in view
+    // Camera setup
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 1.6, 3);
+    cameraRef.current = camera;
 
-      camera.position.set(center.x, center.y, center.z + cameraZ);
-      camera.lookAt(center);
-      camera.updateProjectionMatrix();
+    // Renderer setup
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.xr.enabled = true;
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
-      updateElement(elementId, {
-        position: center,
-        scale: new THREE.Vector3(1, 1, 1),
-      });
-    }
-  }, [camera, elementId, updateElement]);
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(0, 5, 0);
+    scene.add(directionalLight);
 
-  return <primitive object={scene} ref={modelRef} />;
-};
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.6, 0);
+    controls.update();
+    controlsRef.current = controls;
 
-const Scene: React.FC = () => {
-  const { setSceneRef, elements } = useAREngine();
-  const { scene } = useThree();
-
-  useEffect(() => {
-    setSceneRef(scene);
-  }, [scene, setSceneRef]);
-
-  return (
-    <>
-      <ambientLight intensity={0.5} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-      <pointLight position={[-10, -10, -10]} />
-      {elements.map((element) => (
-        <Model key={element.id} url={element.object.userData.url} elementId={element.id} />
-      ))}
-      <OrbitControls />
-    </>
-  );
-};
-
-const ARViewer: React.FC = () => {
-  const { addElement, elements } = useAREngine();
-  const [selectedModel, setSelectedModel] = useState<string>('/assets/models/robot.glb');
-  const [trackingType, setTrackingType] = useState<'image' | 'face' | 'pose'>('image');
-  const { isTracking, result, videoRef, startTracking, stopTracking } = useTracking(trackingType);
-
-  const models = [
-    { value: '/assets/models/robot.glb', label: 'Robot' },
-    { value: '/assets/models/car.glb', label: 'Car' },
-    { value: '/assets/models/house.glb', label: 'House' },
-  ];
-
-  const handleAddModel = () => {
-    const loader = new THREE.GLTFLoader();
-    loader.load(selectedModel, (gltf) => {
-      const model = gltf.scene;
-      model.userData.url = selectedModel;
-      addElement('model', model);
+    // AR button
+    const arButton = ARButton.createButton(renderer, {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: { root: document.body },
     });
-  };
+    document.body.appendChild(arButton);
 
-  const handleStartTracking = async () => {
-    if (videoRef.current) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        startTracking();
-      } catch (error) {
-        console.error('Error accessing camera:', error);
+    // Animation loop
+    const animate = () => {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // Resize handler
+    const handleResize = () => {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // AR session started handler
+    renderer.xr.addEventListener('sessionstart', () => {
+      setIsARMode(true);
+    });
+
+    // AR session ended handler
+    renderer.xr.addEventListener('sessionend', () => {
+      setIsARMode(false);
+    });
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (containerRef.current) {
+        containerRef.current.removeChild(renderer.domElement);
       }
-    }
-  };
+      document.body.removeChild(arButton);
+    };
+  }, []);
 
   useEffect(() => {
-    if (result) {
-      // Update AR scene based on tracking results
-      console.log('Tracking result:', result);
-      // You would implement logic here to update the AR scene
-      // based on the tracking results, e.g., positioning 3D objects
-      // on detected faces or aligning them with detected poses
+    if (!sceneRef.current) return;
+
+    const scene = sceneRef.current;
+    const loader = new GLTFLoader();
+
+    // Remove old objects
+    Object.values(objectsRef.current).forEach(obj => scene.remove(obj));
+    objectsRef.current = {};
+
+    // Add new objects
+    elements.forEach(element => {
+      if (element.type === 'model') {
+        loader.load(element.url, (gltf) => {
+          const model = gltf.scene;
+          model.position.set(...element.position);
+          model.rotation.set(...element.rotation);
+          model.scale.set(...element.scale);
+          scene.add(model);
+          objectsRef.current[element.id] = model;
+        });
+      } else if (element.type === 'image' || element.type === 'video') {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        const material = element.type === 'image'
+          ? new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load(element.url) })
+          : new THREE.MeshBasicMaterial({ map: new THREE.VideoTexture(document.createElement('video')) });
+        const plane = new THREE.Mesh(geometry, material);
+        plane.position.set(...element.position);
+        plane.rotation.set(...element.rotation);
+        plane.scale.set(...element.scale);
+        scene.add(plane);
+        objectsRef.current[element.id] = plane;
+      } else if (element.type === 'text') {
+        const loader = new THREE.FontLoader();
+        loader.load('/fonts/helvetiker_regular.typeface.json', (font) => {
+          const geometry = new THREE.TextGeometry(element.content || '', {
+            font: font,
+            size: 0.1,
+            height: 0.01,
+          });
+          const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+          const textMesh = new THREE.Mesh(geometry, material);
+          textMesh.position.set(...element.position);
+          textMesh.rotation.set(...element.rotation);
+          textMesh.scale.set(...element.scale);
+          scene.add(textMesh);
+          objectsRef.current[element.id] = textMesh;
+        });
+      }
+    });
+  }, [elements]);
+
+  const handleElementUpdate = (id: string, updates: Partial<ARElement>) => {
+    const object = objectsRef.current[id];
+    if (object) {
+      if (updates.position) object.position.set(...updates.position);
+      if (updates.rotation) object.rotation.set(...updates.rotation);
+      if (updates.scale) object.scale.set(...updates.scale);
     }
-  }, [result]);
+    onElementUpdate(id, updates);
+  };
+
+  const handleGrab = () => {
+    setIsGrabbing(!isGrabbing);
+    if (rendererRef.current) {
+      rendererRef.current.domElement.style.cursor = isGrabbing ? 'grab' : 'grabbing';
+    }
+  };
 
   return (
-    <div className={styles.arViewer}>
-      <h1 className={styles.title}>AR Viewer</h1>
+    <div className={styles.arViewer} ref={containerRef}>
       <div className={styles.controls}>
-        <Select onValueChange={(value) => setSelectedModel(value)}>
-          <SelectTrigger className={styles.modelSelect}>
-            <SelectValue placeholder="Select a model" />
-          </SelectTrigger>
-          <SelectContent>
-            {models.map((model) => (
-              <SelectItem key={model.value} value={model.value}>
-                {model.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={handleAddModel}>Add Model</Button>
-        <Select onValueChange={(value: 'image' | 'face' | 'pose') => setTrackingType(value)}>
-          <SelectTrigger className={styles.trackingSelect}>
-            <SelectValue placeholder="Select tracking type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="image">Image Tracking</SelectItem>
-            <SelectItem value="face">Face Tracking</SelectItem>
-            <SelectItem value="pose">Pose Tracking</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button onClick={isTracking ? stopTracking : handleStartTracking}>
-          {isTracking ? 'Stop Tracking' : 'Start Tracking'}
+        <Button onClick={() => setIsARMode(!isARMode)}>
+          {isARMode ? <Minimize /> : <Maximize />}
+          {isARMode ? 'Exit AR' : 'Enter AR'}
+        </Button>
+        <Button onClick={() => {
+          if (cameraRef.current && controlsRef.current) {
+            cameraRef.current.position.set(0, 1.6, 3);
+            controlsRef.current.target.set(0, 1.6, 0);
+            controlsRef.current.update();
+          }
+        }}>
+          <RotateCcw />
+          Reset View
+        </Button>
+        <Button onClick={handleGrab}>
+          <Hand />
+          {isGrabbing ? 'Release' : 'Grab'}
         </Button>
       </div>
-      <div className={styles.canvasContainer}>
-        <Canvas>
-          <Scene />
-        </Canvas>
-      </div>
-      <video ref={videoRef} className={styles.videoFeed} />
+      {selectedElement && (
+        <Card className={styles.elementControls}>
+          <CardHeader>
+            <CardTitle>{selectedElement.name}</CardTitle>
+            <CardDescription>{selectedElement.type}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className={styles.controlGroup}>
+              <label>Position X</label>
+              <Slider
+                value={[selectedElement.position[0]]}
+                min={-5}
+                max={5}
+                step={0.1}
+                onValueChange={([value]) => handleElementUpdate(selectedElement.id, {
+                  position: [value, selectedElement.position[1], selectedElement.position[2]]
+                })}
+              />
+            </div>
+            <div className={styles.controlGroup}>
+              <label>Position Y</label>
+              <Slider
+                value={[selectedElement.position[1]]}
+                min={-5}
+                max={5}
+                step={0.1}
+                onValueChange={([value]) => handleElementUpdate(selectedElement.id, {
+                  position: [selectedElement.position[0], value, selectedElement.position[2]]
+                })}
+              />
+            </div>
+            <div className={styles.controlGroup}>
+              <label>Position Z</label>
+              <Slider
+                value={[selectedElement.position[2]]}
+                min={-5}
+                max={5}
+                step={0.1}
+                onValueChange={([value]) => handleElementUpdate(selectedElement.id, {
+                  position: [selectedElement.position[0], selectedElement.position[1], value]
+                })}
+              />
+            </div>
+            <div className={styles.controlGroup}>
+              <label>Scale</label>
+              <Slider
+                value={[selectedElement.scale[0]]}
+                min={0.1}
+                max={2}
+                step={0.1}
+                onValueChange={([value]) => handleElementUpdate(selectedElement.id, {
+                  scale: [value, value, value]
+                })}
+              />
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Switch
+              checked={objectsRef.current[selectedElement.id]?.visible}
+              onCheckedChange={(checked) => {
+                if (objectsRef.current[selectedElement.id]) {
+                  objectsRef.current[selectedElement.id].visible = checked;
+                }
+              }}
+            />
+            <span>Visible</span>
+          </CardFooter>
+        </Card>
+      )}
     </div>
   );
 };

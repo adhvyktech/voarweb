@@ -1,43 +1,69 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import styles from '../styles/components/Dashboard.module.css';
 
-interface Project {
+interface ARExperience {
   id: string;
   name: string;
-  description: string;
-  lastModified: string;
+  createdAt: string;
 }
 
 const Dashboard: React.FC = () => {
-  const projects: Project[] = [
-    { id: '1', name: '3D Product Viewer', description: 'Interactive 3D model viewer for e-commerce', lastModified: '2023-09-15' },
-    { id: '2', name: 'AR Business Card', description: 'Augmented reality experience for business cards', lastModified: '2023-09-10' },
-    { id: '3', name: 'Virtual Try-On', description: 'AR-powered virtual try-on for fashion items', lastModified: '2023-09-05' },
-  ];
+  const [experiences, setExperiences] = useState<ARExperience[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    // In a real application, you would fetch the user's AR experiences from an API
+    const mockExperiences: ARExperience[] = [
+      { id: '1', name: 'My First AR Experience', createdAt: '2023-05-01' },
+      { id: '2', name: 'Interactive Product Demo', createdAt: '2023-05-15' },
+      { id: '3', name: 'AR Art Gallery', createdAt: '2023-05-20' },
+    ];
+    setExperiences(mockExperiences);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
+  };
+
+  const handleCreateNew = () => {
+    router.push('/ar-builder');
+  };
+
+  const handleViewExperience = (id: string) => {
+    router.push(`/ar-viewer/${id}`);
+  };
 
   return (
     <div className={styles.dashboard}>
-      <h1 className={styles.title}>Dashboard</h1>
-      <Button className={styles.newProjectButton}>New Project</Button>
-      <div className={styles.projectGrid}>
-        {projects.map((project) => (
-          <Card key={project.id} className={styles.projectCard}>
-            <CardHeader>
-              <CardTitle>{project.name}</CardTitle>
-              <CardDescription>{project.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className={styles.lastModified}>Last modified: {project.lastModified}</p>
-              <div className={styles.cardActions}>
-                <Button variant="outline">Edit</Button>
-                <Button variant="outline">View</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <header className={styles.header}>
+        <h1>AR Platform Dashboard</h1>
+        <Button onClick={handleLogout}>Logout</Button>
+      </header>
+      <main className={styles.main}>
+        <section className={styles.actions}>
+          <Button onClick={handleCreateNew}>Create New AR Experience</Button>
+        </section>
+        <section className={styles.experiences}>
+          <h2>Your AR Experiences</h2>
+          <div className={styles.experienceGrid}>
+            {experiences.map((experience) => (
+              <Card key={experience.id} className={styles.experienceCard}>
+                <CardHeader>
+                  <CardTitle>{experience.name}</CardTitle>
+                  <CardDescription>Created on: {experience.createdAt}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => handleViewExperience(experience.id)}>View</Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      </main>
     </div>
   );
 };

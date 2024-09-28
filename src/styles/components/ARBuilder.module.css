@@ -1,180 +1,138 @@
 .arBuilder {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+
+.mainContent {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sceneView {
+  flex: 2;
+  position: relative;
+}
+
+.properties {
+  flex: 1;
+  padding: 1rem;
+  background-color: var(--background);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.vectorInput {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.timelineEditor {
+  height: 200px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineControls {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--background);
+}
+
+.timeline {
+  flex: 1;
+  position: relative;
+  background-color: var(--secondary);
+  overflow-x: auto;
+}
+
+.timelineCursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--primary);
+}
+
+.animationTrack {
+  height: 20px;
+  margin-bottom: 5px;
+  background-color: var(--accent);
+  position: relative;
+}
+
+.keyframe {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  top: 5px;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.animationList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.keyframeEditor {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.objectLabel {
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.elementList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.elementCard {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    flex-direction: column;
   }
-  
-  .title {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-  
-  .projectHeader {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-  
-  .projectNameInput {
-    flex-grow: 1;
-  }
-  
-  .builderContent {
-    display: flex;
-    gap: 2rem;
-    margin-bottom: 2rem;
-  }
-  
-  .scenePanel,
-  .propertiesPanel {
-    flex: 1;
-  }
-  
-  .panelTitle {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-  }
-  
-  .addElementButtons {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-  
-  .elementList {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 1rem;
-  }
-  
-  .elementCard {
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-  }
-  
-  .elementCard:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  .selectedElement {
-    border: 2px solid var(--primary);
-  }
-  
-  .elementName {
-    font-size: 1rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .elementIcon {
-    width: 32px;
-    height: 32px;
-    color: var(--primary);
-  }
-  
+
   .properties {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
-  
-  .propertyGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+
+  .timelineEditor {
+    height: auto;
   }
-  
-  .vectorInput {
-    display: flex;
-    gap: 0.5rem;
-  }
-  
-  .vectorInput input {
-    flex: 1;
-  }
-  
-  .previewPanel {
-    margin-top: 2rem;
-  }
-  
-  .previewContainer {
-    width: 100%;
-    height: 400px;
-    background-color: var(--secondary);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  
-  .timelinePanel {
-    margin-top: 2rem;
-  }
-  
-  .timelineControls {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-  
-  .timelineTrack {
-    position: relative;
-    height: 40px;
-    background: var(--secondary);
-    margin-bottom: 1rem;
-  }
-  
-  .timelineItem {
-    position: absolute;
-    height: 100%;
-    background: var(--primary);
-    color: var(--primary-foreground);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  .timelineCursor {
-    position: absolute;
-    top: 0;
-    width: 2px;
-    height: 100%;
-    background: var(--destructive);
-  }
-  
+
   .animationList {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-  }
-  
-  .animationCard {
-    display: flex;
     flex-direction: column;
   }
-  
-  @media (max-width: 768px) {
-    .builderContent {
-      flex-direction: column;
-    }
-  
-    .addElementButtons {
-      flex-direction: column;
-    }
-  
-    .elementList {
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    }
-  
-    .timelineControls {
-      flex-wrap: wrap;
-    }
-  
-    .animationList {
-      grid-template-columns: 1fr;
-    }
-  }
+}

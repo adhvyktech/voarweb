@@ -1,50 +1,41 @@
 .arViewer {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  
-  .title {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-  
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  gap: 1rem;
+  z-index: 10;
+}
+
+.elementControls {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 300px;
+  z-index: 10;
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
   .controls {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    flex-direction: column;
   }
-  
-  .modelSelect,
-  .trackingSelect {
-    width: 200px;
+
+  .elementControls {
+    width: calc(100% - 2rem);
+    left: 1rem;
+    right: 1rem;
   }
-  
-  .canvasContainer {
-    flex-grow: 1;
-    min-height: 400px;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  .videoFeed {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: -1;
-  }
-  
-  @media (max-width: 768px) {
-    .controls {
-      flex-direction: column;
-    }
-  
-    .modelSelect,
-    .trackingSelect {
-      width: 100%;
-    }
-  }
+}
